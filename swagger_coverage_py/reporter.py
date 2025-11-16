@@ -36,11 +36,27 @@ class CoverageReporter:
         if not self.swagger_coverage_config:
             return paths_to_ignore
 
-        with open(self.swagger_coverage_config, "r") as file:
-            data = json.load(file)
-            paths = data.get("rules").get("paths", {})
-            if paths.get("enable", False):
-                paths_to_ignore = paths.get("ignore")
+        try:
+            # Попробуем сначала относительный путь
+            config_path = Path(self.swagger_coverage_config)
+            if not config_path.exists():
+                # Если не найден, попробуем абсолютный путь
+                project_root = Path(__file__).parent.parent.parent.parent
+                config_path = project_root / self.swagger_coverage_config
+
+            if config_path.exists():
+                with open(config_path, "r") as file:
+                    data = json.load(file)
+                    paths = data.get("rules", {}).get("paths", {})
+                    if paths.get("enable", False):
+                        paths_to_ignore = paths.get("ignore", [])
+            else:
+                if DEBUG_MODE:
+                    print(f"Config file not found: {self.swagger_coverage_config}")
+
+        except (FileNotFoundError, json.JSONDecodeError, KeyError) as e:
+            if DEBUG_MODE:
+                print(f"Error reading config file {self.swagger_coverage_config}: {e}")
 
         return paths_to_ignore
 
